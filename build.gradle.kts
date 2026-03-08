@@ -40,7 +40,6 @@ loom {
 
 repositories {
 	mavenCentral()
-	maven { url = uri("https://jitpack.io") }
 	maven {
 		name = "Babric"
 		url = uri("https://maven.glass-launcher.net/babric")
@@ -60,7 +59,7 @@ repositories {
 	ivy {
 		url = uri("https://github.com/Better-than-Adventure")
 		patternLayout {
-			artifact("[organisation]/releases/download/v[revision]/[module].jar")
+			artifact("[organisation]/releases/download/[revision]/[module]-bta-[revision].jar")
 		}
 		metadataSources { artifact() }
 	}
@@ -114,7 +113,7 @@ dependencies {
 	implementation("org.apache.commons:commons-lang3:3.12.0")
 	include("org.apache.commons:commons-lang3:3.12.0")
 
-	modImplementation("com.github.Better-than-Adventure:legacy-lwjgl3:1.0.5")
+	modImplementation("legacy-lwjgl3:legacy-lwjgl3:1.0.6")
 	implementation(platform("org.lwjgl:lwjgl-bom:$lwjglVersion"))
 
 	runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
