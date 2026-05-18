@@ -3,7 +3,7 @@ package toufoumaster.btwaila.gui.components;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.player.PlayerLocal;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.ScreenHudDesigner;
+import net.minecraft.client.gui.ScreenHudEditor;
 import net.minecraft.client.gui.guidebook.mobs.MobInfoRegistry;
 import net.minecraft.client.gui.hud.HudIngame;
 import net.minecraft.client.gui.hud.component.HudComponent;
@@ -11,15 +11,20 @@ import net.minecraft.client.gui.hud.component.HudComponentMovable;
 import net.minecraft.client.gui.hud.component.layout.Layout;
 import net.minecraft.client.gui.hud.component.layout.LayoutSnap;
 import net.minecraft.client.render.Lighting;
+import net.minecraft.client.render.Scissor;
 import net.minecraft.client.render.TextureManager;
 import net.minecraft.client.render.entity.EntityRendererItem;
 import net.minecraft.client.render.item.model.ItemModel;
 import net.minecraft.client.render.item.model.ItemModelDispatcher;
-import net.minecraft.client.render.tessellator.Tessellator;
+import net.minecraft.client.render.renderer.BlendFactor;
+import net.minecraft.client.render.renderer.GLRenderer;
+import net.minecraft.client.render.renderer.Shaders;
+import net.minecraft.client.render.renderer.State;
+import net.minecraft.client.render.tessellator.TessellatorGeneral;
 import net.minecraft.client.render.texture.stitcher.IconCoordinate;
+import net.minecraft.client.render.texture.stitcher.TextureRegistry;
 import net.minecraft.core.block.Blocks;
 import net.minecraft.core.entity.Entity;
-import net.minecraft.core.entity.EntityDispatcher;
 import net.minecraft.core.entity.EntityPainting;
 import net.minecraft.core.entity.Mob;
 import net.minecraft.core.entity.animal.*;
@@ -31,11 +36,10 @@ import net.minecraft.core.item.IItemConvertible;
 import net.minecraft.core.item.ItemStack;
 import net.minecraft.core.item.Items;
 import net.minecraft.core.player.inventory.container.Container;
+import net.minecraft.core.util.helper.LightIndexHelper;
 import net.minecraft.core.util.helper.MathHelper;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.opengl.GL11;
-import toufoumaster.btwaila.BTWailaClient;
-import toufoumaster.btwaila.mixin.interfaces.IOptions;
+import toufoumaster.btwaila.BTWailaOptions;
 import toufoumaster.btwaila.util.ColorOptions;
 import toufoumaster.btwaila.util.Colors;
 import toufoumaster.btwaila.util.ProgressBarOptions;
@@ -56,7 +60,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         addEntityIcon(PlayerLocal.class, Items.FLAG);
         //addEntityIcon(PlayerServer.class, Items.FLAG);
         addEntityIcon(MobZombieArmored.class, Items.CHAINLINK);
-        addEntityIcon(MobCreeper.class, Items.SULPHUR);
+        addEntityIcon(MobCreeper.class, Items.GUNPOWDER);
         addEntityIcon(MobGhast.class, Items.AMMO_FIREBALL);
         addEntityIcon(MobZombiePig.class, Items.FOOD_PORKCHOP_COOKED);
         addEntityIcon(MobPig.class, Items.FOOD_PORKCHOP_RAW);
@@ -89,9 +93,6 @@ public abstract class WailaTextComponent extends HudComponentMovable {
     protected int posX = 0;
     protected float scale = 1f;
     public Minecraft minecraft = Minecraft.getMinecraft();
-    public IOptions modSettings(){
-        return BTWailaClient.modSettings;
-    }
     protected Gui activeGUI;
     protected int xScreenSize;
     protected int yScreenSize;
@@ -101,23 +102,25 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         super(key, componentTextWidth, ySize, layout);
         this.ySize = ySize;
     }
-    @Override
-    public int getXSize(Minecraft mc) {
-        return componentTextWidth;
-    }
-    public void render(Minecraft minecraft, HudIngame HudIngame, int xScreenSize, int yScreenSize, float partialTick){
-        this.minecraft = minecraft;
+
+	@Override
+	public int getBaseXSize() {
+		return componentTextWidth;
+	}
+
+	@Override
+    public void render(HudIngame HudIngame, int xScreenSize, int yScreenSize, float partialTick){
         this.activeGUI = HudIngame;
         this.xScreenSize = xScreenSize;
         this.yScreenSize = yScreenSize;
-        if (minecraft.currentScreen instanceof ScreenHudDesigner) return; // Fixes weird placement issues while editing HUD in world
+        if (minecraft.currentScreen instanceof ScreenHudEditor) return; // Fixes weird placement issues while editing HUD in world
         startY = offY = generateOriginalPosY();
         posX = generateOriginalPosX();
         renderPost(minecraft, HudIngame, xScreenSize, yScreenSize, partialTick);
     }
 
-    public void renderPreview(Minecraft minecraft, Gui gui, Layout layout, int xScreenSize, int yScreenSize){
-        this.minecraft = minecraft;
+	@Override
+    public void renderPreview(Gui gui, Layout layout, int xScreenSize, int yScreenSize){
         this.activeGUI = gui;
         this.xScreenSize = xScreenSize;
         this.yScreenSize = yScreenSize;
@@ -155,35 +158,25 @@ public abstract class WailaTextComponent extends HudComponentMovable {
     public  float getScale() { return scale; }
 
     public int generateOriginalPosY() {
-        return getLayout().getComponentY(minecraft, this, yScreenSize);
+        return getLayout().getComponentY(this, yScreenSize);
     }
 
     public int generateOriginalPosX() {
-        return getLayout().getComponentX(minecraft, this, xScreenSize);
+        return getLayout().getComponentX(this, xScreenSize);
     }
 
     public void drawStringWithShadow(String text, int offX, int color) {
-        int width = minecraft.font.getStringWidth(text);
-        minecraft.font.drawStringWithShadow(text, posX+offX + getStartingX(width), offY, color);
+        int width = minecraft.font.stringWidth(text);
+        minecraft.font.render(text, posX+offX + getStartingX(width), offY).setZ(0).setColor(color).setShadow().call();
         addOffY(getLineHeight());
     }
     public int getStartingX(int width){
-        int diff = getXSize(minecraft) - width;
-        int startX;
-        switch (modSettings().bTWaila$getTooltipFormatting().value){
-            case LEFT:
-                startX = 0;
-                break;
-            case CENTERED:
-                startX = diff/2;
-                break;
-            case RIGHT:
-                startX = diff;
-                break;
-            default:
-                throw new IllegalArgumentException("Unexpected enum: " + modSettings().bTWaila$getTooltipFormatting().value);
-        }
-        return startX;
+        int diff = getBaseXSize() - width;
+		return switch (BTWailaOptions.tooltipFormatting.value) {
+			case LEFT -> 0;
+			case CENTERED -> diff / 2;
+			case RIGHT -> diff;
+		};
     }
 
     public void drawStringWithShadow(String text, int offX) {
@@ -198,7 +191,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
             prevline = new StringBuilder(line.toString());
             line.append(word).append(" ");
             wordCount++;
-            if (minecraft.font.getStringWidth(line.toString().trim()) > maxWidth){
+            if (minecraft.font.stringWidth(line.toString().trim()) > maxWidth){
                 if (wordCount <= 1){
                     drawStringWithShadow(line.toString(), offX, color);
                     line.setLength(0);
@@ -219,7 +212,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         drawStringCentered(text, Colors.WHITE);
     }
     public void drawStringCentered(String text, int color){
-        minecraft.font.drawCenteredString(text, posX + (componentTextWidth/2), offY, color);
+        minecraft.font.renderCentered(text, posX + (componentTextWidth/2), offY).setColor(color).setShadow().call();
         addOffY(getLineHeight());
     }
 
@@ -228,9 +221,8 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         float r = (float)(color >> 16 & 0xFF) / 255.0f;
         float g = (float)(color >> 8 & 0xFF) / 255.0f;
         float b = (float)(color & 0xFF) / 255.0f;
-        GL11.glColor4f(r, g, b, 1f);
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(0, minecraft.resolution.getWidthScreenCoords() - h * minecraft.resolution.getScale(), w * minecraft.resolution.getScale(), minecraft.resolution.getHeightScreenCoords());
+        GLRenderer.setColor4f(r, g, b, 1f);
+        Scissor.enable(0, minecraft.resolution.getWidthScreenCoords() - h * minecraft.resolution.getScale(), w * minecraft.resolution.getScale(), minecraft.resolution.getHeightScreenCoords());
 
         for (int i = x; i < w; i += tileWidth) {
             for (int j = y; j < h; j += tileWidth) {
@@ -238,13 +230,13 @@ public abstract class WailaTextComponent extends HudComponentMovable {
                 activeGUI.drawTexturedModalRect(i, j, texX, texY, tileWidth, tileWidth);
             }
         }
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        Scissor.disable();
     }
     public void drawIcon(double x, double y, double w, double h, IconCoordinate coordinate, int color){
         float r = (float)(color >> 16 & 0xFF) / 255.0f;
         float g = (float)(color >> 8 & 0xFF) / 255.0f;
         float b = (float)(color & 0xFF) / 255.0f;
-        GL11.glColor4f(r, g, b, 1f);
+        GLRenderer.setColor4f(r, g, b, 1f);
 
         coordinate.parentAtlas.bind();
 
@@ -253,14 +245,13 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         double minV = coordinate.getIconVMin();
         double maxV = coordinate.getIconVMax();
 
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(
+        Scissor.enable(
             0,
             MathHelper.floor(minecraft.resolution.getHeightScreenCoords() - h * minecraft.resolution.getScale()),
             MathHelper.floor(w * minecraft.resolution.getScale()),
             minecraft.resolution.getHeightScreenCoords());
 
-        Tessellator tessellator = Tessellator.instance;
+        TessellatorGeneral tessellator = GLRenderer.getTessellator();
         tessellator.startDrawingQuads();
         for (double i = x; i < w; i += coordinate.width) {
             for (double j = y; j < h; j += coordinate.height) {
@@ -272,7 +263,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         }
         tessellator.draw();
 
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        Scissor.disable();
     }
 
     private String generateTemplateString(String text, int max, boolean values, boolean percentage) {
@@ -303,7 +294,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
 
     public void drawTexturedModalRect(double x, double y, double width, double height, float percent) {
         float z = 0.0f;
-        Tessellator tessellator = Tessellator.instance;
+        TessellatorGeneral tessellator = GLRenderer.getTessellator();
         tessellator.startDrawingQuads();
         tessellator.addVertexWithUV((x + 0),     (y + height), z, 0,       1);
         tessellator.addVertexWithUV((x + width), (y + height), z, percent, 1);
@@ -317,20 +308,20 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         final int sizeY = 16;
         float progress = (boxWidth*ratio);
 
-        GL11.glPushMatrix();
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glColor4f(1, 1, 1, 1);
+        GLRenderer.pushFrame();
+		GLRenderer.enableState(State.BLEND);
+        GLRenderer.setBlendFunc(BlendFactor.SRC_ALPHA, BlendFactor.ONE_MINUS_SRC_ALPHA);
+        GLRenderer.setColor4f(1, 1, 1, 1);
         TextureManager textureManager = minecraft.textureManager;
-        String style = modSettings().bTWaila$getBarStyle().value.name();
+        String style = BTWailaOptions.barStyle.value.name();
         textureManager.bindTexture(textureManager.loadTexture("/assets/btwaila/gui/progressBg_" + style + ".png"));
         drawTexturedModalRect(posX + offX, offY, boxWidth, sizeY, 1.f);
         if (progress > 0) {
             textureManager.bindTexture(textureManager.loadTexture("/assets/btwaila/gui/progressOverlay_" + style + ".png"));
             drawTexturedModalRect(posX + offX, offY, progress, sizeY, ratio);
         }
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glPopMatrix();
+		GLRenderer.disableState(State.BLEND);
+        GLRenderer.popFrame();
         addOffY(sizeY);
     }
 
@@ -343,7 +334,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         IconCoordinate fgCoord = fgOptions.coordinate;
 
         this.drawRect(posX+offX, offY, posX+offX+boxWidth, offY+sizeY, 0xff000000);
-        GL11.glEnable(GL11.GL_BLEND);
+		GLRenderer.enableState(State.BLEND);
         drawIcon(posX+offX, offY, posX+offX+boxWidth, offY+sizeY, bgCoord, bgOptions.color);
         drawIcon(posX+offX, offY, posX+offX+progress, offY+sizeY, fgCoord, fgOptions.color);
         addOffY(sizeY);
@@ -351,9 +342,9 @@ public abstract class WailaTextComponent extends HudComponentMovable {
 
     public void drawProgressBarWithText(int value, int max, ProgressBarOptions options, int offX) {
         int stringPadding = 5;
-        int stringWidth = minecraft.font.getStringWidth(generateTemplateString(options.text, max, options.values, options.percentage));
+        int stringWidth = minecraft.font.stringWidth(generateTemplateString(options.text, max, options.values, options.percentage));
         String toDrawText = generateProgressBarString(options.text, value, max, options.values, options.percentage);
-        int textWidthDif = stringWidth - minecraft.font.getStringWidth(toDrawText);
+        int textWidthDif = stringWidth - minecraft.font.stringWidth(toDrawText);
         int width = options.boxWidth;
         if (width == 0) {
             width = stringWidth + stringPadding * 2;
@@ -369,9 +360,9 @@ public abstract class WailaTextComponent extends HudComponentMovable {
 
     public void drawProgressBarTextureWithText(int value, int max, ProgressBarOptions options, int offX) {
         int stringPadding = 5;
-        int stringWidth = minecraft.font.getStringWidth(generateTemplateString(options.text, max, options.values, options.percentage));
+        int stringWidth = minecraft.font.stringWidth(generateTemplateString(options.text, max, options.values, options.percentage));
         String toDrawText = generateProgressBarString(options.text, value, max, options.values, options.percentage);
-        int textWidthDif = stringWidth - minecraft.font.getStringWidth(toDrawText);
+        int textWidthDif = stringWidth - minecraft.font.stringWidth(toDrawText);
         int width = options.boxWidth;
         if (width == 0) {
             width = stringWidth + stringPadding * 2;
@@ -408,18 +399,17 @@ public abstract class WailaTextComponent extends HudComponentMovable {
 
     public void drawItemList(ItemStack[] itemList, int offX) {
         Lighting.enableInventoryLight();
-        GL11.glEnable(32826);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GLRenderer.enableState(State.DEPTH_TEST);
 
-        Tessellator t = Tessellator.instance;
+        TessellatorGeneral t = GLRenderer.getTessellator();
 
         int itemX = 0;
         int itemY = 0;
         for (ItemStack itemStack : itemList) {
             if (itemStack != null) {
                 ItemModel model = ItemModelDispatcher.getInstance().getDispatch(itemStack);
-                model.renderItemIntoGui(t, minecraft.font, minecraft.textureManager, itemStack, posX + offX + itemX * 16, offY + itemY * 16, 1.0F);
-                model.renderItemOverlayIntoGUI(t, minecraft.font, minecraft.textureManager, itemStack, posX + offX + itemX * 16, offY + itemY * 16, 1.0F);
+                model.renderGui(t, null, itemStack, posX + offX + itemX * 16, offY + itemY * 16, LightIndexHelper.lightIndex2i(15,15), 1.0F);
+                model.renderItemOverlayIntoGUI(t, minecraft.font, minecraft.textureManager, itemStack, posX + offX + itemX * 16, offY + itemY * 16, null, 1.0F);
                 itemX++;
                 if (itemX >= 9) {
                     itemX = 0;
@@ -429,16 +419,14 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         }
         if (itemY == 0 && itemX != 0) itemY = 1;
         addOffY(16*itemY);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDisable(GL11.GL_LIGHTING);
+        GLRenderer.disableState(State.DEPTH_TEST);
         Lighting.disable();
     }
 
     public void drawInventory(Container inventory, int offX) {
         Lighting.enableInventoryLight();
-        GL11.glEnable(32826);
-        int invWidth = getXSize(minecraft);
-        int invHeight = getYSize(minecraft);
+        int invWidth = getBaseXSize();
+        int invHeight = getBaseYSize();
 
         int invArea = invHeight * invWidth;
         final int maxLength = 16;
@@ -459,21 +447,21 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         int itemsWide = (int) Math.floor(invWidth/iconLength);
         double scale = iconLength/16d;
 
-        GL11.glScaled(scale, scale, scale);
+        GLRenderer.modelM4f().scale((float) scale, (float) scale, (float) scale);
 
-        Tessellator t = Tessellator.instance;
+        TessellatorGeneral t = GLRenderer.getTessellator();
 
         int itemX = 0;
         int itemY = 0;
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GLRenderer.enableState(State.DEPTH_TEST);
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack itemStack = inventory.getItem(i);
             if (itemStack != null) {
                 int renderX = (int) ((posX + offX + itemX * iconLength) /scale);
                 int renderY = (int) ((offY + itemY * iconLength)/scale);
                 ItemModel model = ItemModelDispatcher.getInstance().getDispatch(itemStack);
-                model.renderItemIntoGui(t, minecraft.font, minecraft.textureManager, itemStack, renderX, renderY, 1.0F);
-                model.renderItemOverlayIntoGUI(t, minecraft.font, minecraft.textureManager, itemStack, renderX, renderY, 1.0F);
+                model.renderGui(t, null, itemStack, renderX, renderY, LightIndexHelper.lightIndex2i(15,15),1.0F);
+                model.renderItemOverlayIntoGUI(t, minecraft.font, minecraft.textureManager, itemStack, renderX, renderY, null, 1.0F);
                 itemX++;
                 if (itemX >= itemsWide) {
                     itemX = 0;
@@ -482,21 +470,116 @@ public abstract class WailaTextComponent extends HudComponentMovable {
             }
         }
 
-        GL11.glScaled(1/scale, 1/scale, 1/scale);
+        GLRenderer.modelM4f().scale((float) (1/scale), (float) (1/scale), (float) (1/scale));
 
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDisable(GL11.GL_LIGHTING);
+        GLRenderer.disableState(State.DEPTH_TEST);
         if (itemX == 0) itemY-=1;
         addOffY((int)iconLength*(1+itemY));
 
         Lighting.disable();
     }
 
-    protected void drawEntityHealth(Mob entity) {
-        Random rand = new Random();
+    protected void drawEntityHealth(Gui hud, Mob entity) {
+		//int x = posX + getStartingX(0);
+		//int y = offY;
+		Random rand = new Random();
+
+		GLRenderer.setColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+		renderTranslucency();
+		GLRenderer.enableState(State.BLEND);
+
+		int health = entity.getHealth();
+		int prevHealth = entity.prevHealth;
+		int hearts = (int) Math.ceil(entity.getHealth()/2f);
+		int heartsPerRow = componentTextWidth/8;
+		int rows = (int) Math.ceil(((float)hearts)/heartsPerRow);
+		boolean isVertical = false;//this.isVertical();
+		boolean isFlipped = false;//this.isFlipped();
+
+		String styleFolder = "survival/";
+
+		String halfSuffix = "";
+		if (isVertical) {
+			halfSuffix = isFlipped ? "_vertical_flipped" : "_vertical";
+		} else if (isFlipped) {
+			halfSuffix = "_flipped";
+		}
+
+		if (rows > BTWailaOptions.heartRows.value) {
+
+			int width = 8;
+			int y = offY;
+			int x = posX + getStartingX(width);
+
+			hud.drawGuiIcon(x, y, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/container"));
+			if (1 < health)
+			{
+				hud.drawGuiIcon(x, y, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/" + styleFolder + "full"));
+			}
+			if (1 == health) {
+				hud.drawGuiIcon(x, y, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/" + styleFolder + "half" + halfSuffix));
+			}
+
+			DecimalFormat df = new DecimalFormat("#.#");
+			drawStringWithShadow(String.format("x %s", df.format(health/2f)), 10, Colors.WHITE);
+			addOffY(getLineHeight());
+			return;
+		}
+
+		int trueHeartNum = 0;
+		for (int row = 0; row < rows; row++) {
+			int heartsToDraw = heartsPerRow;
+			if (row == rows - 1) {
+				heartsToDraw = hearts - (row * heartsPerRow);
+			}
+			for (int heart = 0; heart < heartsToDraw; heart++) {
+				int width = heartsToDraw * 8;
+				int y = offY;
+
+				int x = posX + getStartingX(width) + heart * 8;
+				if (health <= 4) {
+					y += rand.nextInt(2);
+				}
+
+				hud.drawGuiIcon(x, y, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/container"));
+				if (heart * 2 + 1 < health)
+				{
+					hud.drawGuiIcon(x, y, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/" + styleFolder + "full"));
+				}
+				if (heart * 2 + 1 == health) {
+					hud.drawGuiIcon(x, y, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/" + styleFolder + "half" + halfSuffix));
+				}
+			}
+			addOffY(getLineHeight());
+		}
+
+		/*for (int i = 0; i < hearts; i++) {
+			int xHeart;
+			int yHeart;
+
+			if (isVertical) {
+				xHeart = x;
+				yHeart = isFlipped ? (y + i * 8) : (y + (9 - i) * 8);
+			} else {
+				xHeart = isFlipped ? (x + (9 - i) * 8) : (x + i * 8);
+				yHeart = y;
+			}
+
+			// Container
+			hud.drawGuiIcon(xHeart, yHeart, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/container"));
+			if (i * 2 + 1 < health)
+			{
+				hud.drawGuiIcon(xHeart, yHeart, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/" + styleFolder + "full"));
+			}
+			if (i * 2 + 1 == health) {
+				hud.drawGuiIcon(xHeart, yHeart, 9, 9, TextureRegistry.getTexture("minecraft:gui/hud/heart/" + styleFolder + "half" + halfSuffix));
+			}
+		}*/
+
+        /*Random rand = new Random();
 
         Lighting.disable();
-        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        GLRenderer.setColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         minecraft.textureManager.bindTexture(minecraft.textureManager.loadTexture("/gui/icons.png"));
 
         boolean heartsFlash;
@@ -505,8 +588,6 @@ public abstract class WailaTextComponent extends HudComponentMovable {
             heartsFlash = false;
         }
 
-
-
         int health = entity.getHealth();
         int prevHealth = entity.prevHealth;
         int hearts = (int) Math.ceil(entity.getHealth()/2f);
@@ -514,14 +595,13 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         int rows = (int) Math.ceil(((float)hearts)/heartsPerRow);
 //        int additionalHearts = 0;
 
-        if (rows > modSettings().bTWaila$getSmallEntityHealthBar().value) {
+        if (rows > Options.smallEntityHealthBar.value) {
             // rip :(
 //            rows = modSettings().bTWaila$getSmallEntityHealthBar().value;
 //            additionalHearts = hearts - rows * heartsPerRow;
 //            hearts = rows * heartsPerRow;
 
-            int x = posX + getStartingX(0);
-            int y = offY;
+
             activeGUI.drawTexturedModalRect(x, y, 16, 0, 9, 9);
             if (heartsFlash) {
                 activeGUI.drawTexturedModalRect(x, y, 25, 0, 9, 9);
@@ -588,7 +668,7 @@ public abstract class WailaTextComponent extends HudComponentMovable {
 //            activeGUI.drawTexturedModalRect(x, y, 52, 0, 9, 9);
 //            drawStringWithShadow("x " + additionalHearts, 10, Colors.WHITE);
 //            addOffY(getLineHeight());
-//        }
+//        }*/
     }
 
     protected void drawRect(int minX, int minY, int maxX, int maxY, int argb) {
@@ -607,19 +687,18 @@ public abstract class WailaTextComponent extends HudComponentMovable {
         float r = (float)(argb >> 16 & 0xFF) / 255.0f;
         float g = (float)(argb >> 8 & 0xFF) / 255.0f;
         float b = (float)(argb & 0xFF) / 255.0f;
-        Tessellator tessellator = Tessellator.instance;
-        GL11.glEnable(3042);
-        GL11.glDisable(3553);
-        GL11.glBlendFunc(770, 771);
-        GL11.glColor4f(r, g, b, a);
+        TessellatorGeneral tessellator = GLRenderer.getTessellator();
+        GLRenderer.enableState(State.BLEND);
+        GLRenderer.setShader(Shaders.COLOR);
+        GLRenderer.setBlendFunc(BlendFactor.SRC_ALPHA, BlendFactor.ONE_MINUS_SRC_ALPHA);
+        GLRenderer.setColor4f(r, g, b, a);
         tessellator.startDrawingQuads();
         tessellator.addVertex(minX, maxY, 0.0);
         tessellator.addVertex(maxX, maxY, 0.0);
         tessellator.addVertex(maxX, minY, 0.0);
         tessellator.addVertex(minX, minY, 0.0);
         tessellator.draw();
-        GL11.glEnable(3553);
-        GL11.glDisable(3042);
+        GLRenderer.disableState(State.BLEND);
     }
 
     public EntityRendererItem getItemRenderer(){

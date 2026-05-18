@@ -1,17 +1,18 @@
 package toufoumaster.btwaila.tooltips.block;
 
+import net.minecraft.client.render.Lighting;
 import net.minecraft.client.render.item.model.ItemModel;
 import net.minecraft.client.render.item.model.ItemModelDispatcher;
+import net.minecraft.client.render.renderer.GLRenderer;
 import net.minecraft.client.render.tessellator.Tessellator;
-import net.minecraft.core.block.Block;
+import net.minecraft.client.render.tessellator.TessellatorGeneral;
 import net.minecraft.core.block.Blocks;
 import net.minecraft.core.block.entity.TileEntityFlag;
-import net.minecraft.core.item.Item;
 import net.minecraft.core.item.ItemStack;
 import net.minecraft.core.item.Items;
-import org.lwjgl.opengl.GL11;
+import net.minecraft.core.util.helper.LightIndexHelper;
+
 import toufoumaster.btwaila.demo.DemoEntry;
-import toufoumaster.btwaila.demo.DemoManager;
 import toufoumaster.btwaila.gui.components.AdvancedInfoComponent;
 import toufoumaster.btwaila.tooltips.TileTooltip;
 import toufoumaster.btwaila.util.UUIDHelper;
@@ -32,21 +33,21 @@ public class FlagTooltip extends TileTooltip<TileEntityFlag> {
         ItemStack color3 = flag.items[2];
         advancedInfoComponent.drawStringWithShadow(translator.translateKey("btwaila.tooltip.flag.owner").replace("{name}", flag.owner == null ? translator.translateKey("btwaila.tooltip.flag.owner.none") : String.valueOf(UUIDHelper.getNameFromUUID(flag.owner))), 0);
         advancedInfoComponent.addOffY(2);
-        renderStringAndStack(advancedInfoComponent,translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "1") + "    " +  ((color1 != null) ? translator.translateNameKey(color1.getItemKey()) : translator.translateKey("btwaila.tooltip.flag.empty")), 0, color1);
-        renderStringAndStack(advancedInfoComponent,translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "2") + "    " +  ((color2 != null) ? translator.translateNameKey(color2.getItemKey()) : translator.translateKey("btwaila.tooltip.flag.empty")), 0, color2);
-        renderStringAndStack(advancedInfoComponent,translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "3") + "    " +  ((color3 != null) ? translator.translateNameKey(color3.getItemKey()) : translator.translateKey("btwaila.tooltip.flag.empty")), 0, color3);
+        renderStringAndStack(advancedInfoComponent,translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "1") + "    " +  ((color1 != null) ? color1.getItem().getTranslatedName(color1) : translator.translateKey("btwaila.tooltip.flag.empty")), 0, color1);
+        renderStringAndStack(advancedInfoComponent,translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "2") + "    " +  ((color2 != null) ? color2.getItem().getTranslatedName(color2) : translator.translateKey("btwaila.tooltip.flag.empty")), 0, color2);
+        renderStringAndStack(advancedInfoComponent,translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "3") + "    " +  ((color3 != null) ? color3.getItem().getTranslatedName(color3) : translator.translateKey("btwaila.tooltip.flag.empty")), 0, color3);
     }
     @SuppressWarnings("SameParameterValue")
     protected void renderStringAndStack(AdvancedInfoComponent advancedInfoComponent, String s, int offX, ItemStack stack){
         if (stack != null){
             int y = advancedInfoComponent.getOffY() - 1;
-            int x = advancedInfoComponent.getPosX() - 16 + advancedInfoComponent.minecraft.font.getStringWidth(translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "1") + "    ");
+            int x = advancedInfoComponent.getPosX() - 16 + advancedInfoComponent.minecraft.font.stringWidth(translator.translateKey("btwaila.tooltip.flag.color").replace("{id}", "1") + "    ");
             y -= 3;
-            Tessellator t = Tessellator.instance;
+            TessellatorGeneral t = GLRenderer.getTessellator();
             ItemModel model = ItemModelDispatcher.getInstance().getDispatch(stack);
-            model.renderItemIntoGui(t, advancedInfoComponent.getGame().font, advancedInfoComponent.getGame().textureManager, stack, x, y, 1.0F);
-            model.renderItemOverlayIntoGUI(t, advancedInfoComponent.getGame().font, advancedInfoComponent.getGame().textureManager, stack, x, y, 1.0F);
-            GL11.glDisable(GL11.GL_LIGHTING);
+            model.renderGui(t, null, stack, x, y, LightIndexHelper.lightIndex2i(15,15), 1.0F);
+            model.renderItemOverlayIntoGUI(t, advancedInfoComponent.getGame().font, advancedInfoComponent.getGame().textureManager, stack, x, y, null,1.0F);
+			Lighting.disable();
         }
         advancedInfoComponent.drawStringWithShadow(s, offX);
         advancedInfoComponent.addOffY(4);

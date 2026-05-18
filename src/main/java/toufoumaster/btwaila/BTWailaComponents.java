@@ -1,14 +1,13 @@
 package toufoumaster.btwaila;
 
-import net.minecraft.client.gui.hud.*;
 import net.minecraft.client.gui.hud.component.ComponentAnchor;
 import net.minecraft.client.gui.hud.component.HudComponent;
 import net.minecraft.client.gui.hud.component.HudComponents;
 import net.minecraft.client.gui.hud.component.layout.LayoutAbsolute;
 import net.minecraft.client.gui.hud.component.layout.LayoutSnap;
 import toufoumaster.btwaila.gui.components.*;
-import turniplabs.halplibe.util.ClientStartEntrypoint;
 import toufoumaster.btwaila.interfaces.HudComponentsRegisteredEntryPoint;
+import turniplabs.halplibe.util.ClientStartEntrypoint;
 
 public class BTWailaComponents implements ClientStartEntrypoint, HudComponentsRegisteredEntryPoint {
     public static HudComponent BlockBaseInfoComp;

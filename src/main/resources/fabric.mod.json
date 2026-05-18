@@ -10,7 +10,7 @@
     "Useless"
   ],
   "contributors": [
-    "MartinSVK12",
+    "sunsetsatellite",
     "Bigjango",
     "Midford"
   ],
@@ -45,7 +45,10 @@
     ],
     "client": [
       "toufoumaster.btwaila.BTWailaClient"
-    ]
+    ],
+		"initOptions": [
+			"toufoumaster.btwaila.BTWailaClient"
+		]
   },
   "mixins": [
     "btwaila.mixins.json"
@@ -53,7 +56,7 @@
   "depends": {
     "fabricloader": ">=${fabricloader}",
     "halplibe": ">=${halplibe}",
-    "minecraft": "*",
+    "minecraft": "~8.0-beta.1",
     "java": ">=${java}"
   },
   "suggests": {

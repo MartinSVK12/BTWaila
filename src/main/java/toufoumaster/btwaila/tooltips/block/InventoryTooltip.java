@@ -25,10 +25,9 @@ public class InventoryTooltip extends TileTooltip<Container> {
     }
     @Override
     public void drawAdvancedTooltip(Container inventory, AdvancedInfoComponent advancedInfoComponent) {
-        if (inventory instanceof TileEntityChest){
-            TileEntityChest chest = (TileEntityChest)inventory;
-            if (chest.worldObj != null) {
-                inventory = BlockLogicChest.getInventory(chest.worldObj, chest.x, chest.y, chest.z);
+        if (inventory instanceof TileEntityChest chest){
+			if (chest.worldObj != null) {
+                inventory = BlockLogicChest.getInventory(chest.worldObj, chest.tilePos);
             }
         }
         int max = inventory.getContainerSize();

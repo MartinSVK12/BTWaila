@@ -36,14 +36,17 @@ public class TileEntityDemoChest extends TileEntity implements Container {
         }
     }
 
+	@Override
     public int getContainerSize() {
         return 27;
     }
 
+	@Override
     public @Nullable ItemStack getItem(int index) {
         return this.chestContents[index];
     }
 
+	@Override
     public @Nullable ItemStack removeItem(int index, int takeAmount) {
         if (this.chestContents[index] != null) {
             if (this.chestContents[index].stackSize <= takeAmount) {
@@ -65,6 +68,7 @@ public class TileEntityDemoChest extends TileEntity implements Container {
         }
     }
 
+	@Override
     public void setItem(int index, @Nullable ItemStack itemstack) {
         this.chestContents[index] = itemstack;
         if (itemstack != null && itemstack.stackSize > this.getMaxStackSize()) {
@@ -74,12 +78,13 @@ public class TileEntityDemoChest extends TileEntity implements Container {
         this.setChanged();
     }
 
+	@Override
     public String getNameTranslationKey() {
         return "container.chest.name";
     }
 
-    public void readFromNBT(CompoundTag nbttagcompound) {
-        super.readFromNBT(nbttagcompound);
+	@Override
+    public void readAdditionalData(CompoundTag nbttagcompound) {
         ListTag nbttaglist = nbttagcompound.getList("Items");
         this.chestContents = new ItemStack[this.getContainerSize()];
 
@@ -93,7 +98,8 @@ public class TileEntityDemoChest extends TileEntity implements Container {
 
     }
 
-    public void writeToNBT(CompoundTag nbttagcompound) {
+	@Override
+    public void writeAdditionalData(CompoundTag nbttagcompound) {
         super.writeToNBT(nbttagcompound);
         ListTag nbttaglist = new ListTag();
 
@@ -109,22 +115,26 @@ public class TileEntityDemoChest extends TileEntity implements Container {
         nbttagcompound.put("Items", nbttaglist);
     }
 
+	@Override
     public int getMaxStackSize() {
         return 64;
     }
 
+	@Override
     public boolean stillValid(Player entityplayer) {
-        if (this.worldObj != null && this.worldObj.getTileEntity(this.x, this.y, this.z) == this) {
-            return entityplayer.distanceToSqr((double)this.x + (double)0.5F, (double)this.y + (double)0.5F, (double)this.z + (double)0.5F) <= (double)64.0F;
+        if (this.worldObj != null && this.worldObj.getTileEntity(tilePos) == this) {
+            return entityplayer.distanceToSqr((double)this.tilePos.x + (double)0.5F, (double)this.tilePos.y + (double)0.5F, (double)this.tilePos.z + (double)0.5F) <= (double)64.0F;
         } else {
             return false;
         }
     }
 
-    public void sortContainer() {
-        InventorySorter.sortInventory(this.chestContents);
-    }
+	@Override
+	public void sort() {
+		InventorySorter.sortInventory(this.chestContents);
+	}
 
+	@Override
     public void dropContents(World world, int x, int y, int z) {
         super.dropContents(world, x, y, z);
 
@@ -141,10 +151,7 @@ public class TileEntityDemoChest extends TileEntity implements Container {
 
     }
 
-    public boolean canBeCarried(World world, Entity potentialHolder) {
-        return true;
-    }
-
+	@Override
     public CarriedBlock getCarriedEntry(World world, Entity holder, Block<?> currentBlock, int currentMeta) {
         return super.getCarriedEntry(world, holder, currentBlock, BlockLogicChest.getMetaWithDirection(BlockLogicChest.getMetaWithType(currentMeta, Type.SINGLE), Direction.NORTH));
     }

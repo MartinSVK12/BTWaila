@@ -12,23 +12,8 @@ import org.slf4j.Logger;
 import toufoumaster.btwaila.tooltips.EntityTooltip;
 import toufoumaster.btwaila.tooltips.TileTooltip;
 import toufoumaster.btwaila.tooltips.TooltipRegistry;
-import toufoumaster.btwaila.tooltips.block.BasketTooltip;
-import toufoumaster.btwaila.tooltips.block.FlagTooltip;
-import toufoumaster.btwaila.tooltips.block.FurnaceTooltip;
-import toufoumaster.btwaila.tooltips.block.InventoryTooltip;
-import toufoumaster.btwaila.tooltips.block.JarToolTip;
-import toufoumaster.btwaila.tooltips.block.MobSpawnerTooltip;
-import toufoumaster.btwaila.tooltips.block.NoteBlockTooltip;
-import toufoumaster.btwaila.tooltips.block.JukeboxTooltip;
-import toufoumaster.btwaila.tooltips.block.SeatTooltip;
-import toufoumaster.btwaila.tooltips.block.SignTooltip;
-import toufoumaster.btwaila.tooltips.block.TrommelTooltip;
-import toufoumaster.btwaila.tooltips.entity.BoatTooltip;
-import toufoumaster.btwaila.tooltips.entity.ChickenTooltip;
-import toufoumaster.btwaila.tooltips.entity.MinecartTooltip;
-import toufoumaster.btwaila.tooltips.entity.PaintingTooltip;
-import toufoumaster.btwaila.tooltips.entity.PigTooltip;
-import toufoumaster.btwaila.tooltips.entity.PlayerTooltip;
+import toufoumaster.btwaila.tooltips.block.*;
+import toufoumaster.btwaila.tooltips.entity.*;
 
 @SuppressWarnings("unused")
 public class BTWailaPlugin implements BTWailaCustomTooltipPlugin {
