@@ -1,10 +1,8 @@
-import com.google.gson.Gson
 import com.smushytaco.lwjgl_gradle.Preset
 plugins {
 	alias(libs.plugins.loom)
 	alias(libs.plugins.lwjgl)
-	java
-	`maven-publish`
+    java
 }
 val modVersion: Provider<String> = providers.gradleProperty("mod_version")
 val modGroup: Provider<String> = providers.gradleProperty("mod_group")
@@ -15,90 +13,38 @@ val javaVersion: Provider<Int> = libs.versions.java.map { it.toInt() }
 base.archivesName = modName
 group = modGroup.get()
 version = modVersion.get()
-
-class AccountsJson(val accounts: List<Account>)
-class Account(val profile: Profile, val ygg: YGG)
-class YGG(val token: String)
-class Profile(val name: String, val id: String)
-
-val prismAccountsFile = providers.provider {
-	val explicit = providers.gradleProperty("prism.accounts.file").orNull
-	if (explicit != null) {
-		val explicitFile = File(explicit)
-		if (explicitFile.exists()) return@provider explicitFile
-	}
-
-	val home = System.getProperty("user.home")
-
-	val candidates = buildList {
-		// Windows
-		System.getenv("APPDATA")?.let { add(File(it, "PrismLauncher/accounts.json")) }
-		System.getenv("HOMEPATH")?.let { add(File(it, "scoop/persist/prismlauncher/accounts.json")) }
-		// Linux / XDG
-		val xdgDataHome = System.getenv("XDG_DATA_HOME")
-		if (xdgDataHome != null) {
-			add(File(xdgDataHome, "PrismLauncher/accounts.json"))
-		} else {
-			add(File(home, ".local/share/PrismLauncher/accounts.json"))
-		}
-		// Flatpak
-		add(File(home, ".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/accounts.json"))
-		// macOS
-		add(File(home, "Library/Application Support/PrismLauncher/accounts.json"))
-	}
-	candidates.firstOrNull(File::exists)
-}
-
 loom {
-	customMinecraftMetadata.set("https://downloads.betterthanadventure.net/bta-client/${libs.versions.btaChannel.get()}/v${libs.versions.bta.get()}/manifest.json")
-	runs {
-		prismAccountsFile.orNull?.let { file ->
-			val account: Provider<Account> = providers.fileContents(layout.file(providers.provider { file }))
-				.asText
-				.map { jsonStr ->
-					val accountNumber = (providers.gradleProperty("prism.accounts.number").orNull?.toInt() ?: 1) - 1
-					val accounts = Gson().fromJson(jsonStr, AccountsJson::class.java).accounts
-					accounts.getOrNull(accountNumber.coerceIn(0, accounts.size - 1))
-						?: error("No PrismLauncher accounts found in ${file.absolutePath}")
-				}
-			register("clientAuth") {
-				inherit(getByName("client"))
-				configName = "Minecraft Client (Auth)"
-				val acc = account.get()
-				programArgs("--username", acc.profile.name, "--uuid", acc.profile.id, "--session", acc.ygg.token)
-			}
-		}
-	}
+    customMinecraftMetadata.set("https://downloads.betterthanadventure.net/bta-client/${libs.versions.btaChannel.get()}/${libs.versions.bta.get()}/manifest.json")
 }
-
 repositories {
-	mavenCentral()
-	maven("https://maven.fabricmc.net/") { name = "Fabric" }
-	maven("https://maven.thesignalumproject.net/infrastructure") { name = "SignalumMavenInfrastructure" }
-	maven("https://maven.thesignalumproject.net/releases") { name = "SignalumMavenReleases" }
-	ivy("https://github.com/Better-than-Adventure") {
-		patternLayout { artifact("[organisation]/releases/download/[revision]/[module]-bta-[revision].jar") }
-		metadataSources { artifact() }
-	}
-	ivy("https://downloads.betterthanadventure.net/bta-client/${libs.versions.btaChannel.get()}/") {
-		patternLayout { artifact("/v[revision]/client.jar") }
-		metadataSources { artifact() }
-	}
-	ivy("https://downloads.betterthanadventure.net/bta-server/${libs.versions.btaChannel.get()}/") {
-		patternLayout { artifact("/v[revision]/server.jar") }
-		metadataSources { artifact() }
-	}
-	ivy("https://piston-data.mojang.com") {
-		patternLayout { artifact("v1/[organisation]/[revision]/[module].jar") }
-		metadataSources { artifact() }
-	}
+    mavenCentral()
+    maven("https://maven.fabricmc.net/") { name = "Fabric" }
+    maven("https://maven.thesignalumproject.net/infrastructure") { name = "SignalumMavenInfrastructure" }
+    maven("https://maven.thesignalumproject.net/releases") { name = "SignalumMavenReleases" }
+	maven("https://maven.thesignalumproject.net/nightly") { name = "SignalumMavenNightly" }
+    ivy("https://github.com/Better-than-Adventure") {
+        patternLayout { artifact("[organisation]/releases/download/[revision]/[module]-bta-[revision].jar") }
+        metadataSources { artifact() }
+    }
+    ivy("https://downloads.betterthanadventure.net/bta-client/${libs.versions.btaChannel.get()}/") {
+        patternLayout { artifact("/v[revision]/client.jar") }
+        metadataSources { artifact() }
+    }
+    ivy("https://downloads.betterthanadventure.net/bta-server/${libs.versions.btaChannel.get()}/") {
+        patternLayout { artifact("/v[revision]/server.jar") }
+        metadataSources { artifact() }
+    }
+    ivy("https://piston-data.mojang.com") {
+        patternLayout { artifact("v1/[organisation]/[revision]/[module].jar") }
+        metadataSources { artifact() }
+    }
 }
 lwjgl {
 	version = libs.versions.lwjgl
 	implementation(Preset.MINIMAL_OPENGL)
 }
 dependencies {
-	minecraft("::${libs.versions.bta.get()}")
+    minecraft("::${libs.versions.bta.get()}")
 
 	runtimeOnly(libs.clientJar)
 	implementation(libs.loader)
@@ -152,7 +98,7 @@ tasks {
 		targetCompatibility = javaVersion.get().toString()
 		if (javaVersion.get() > 8) options.release = javaVersion
 	}
-	withType<UpdateDaemonJvm>().configureEach {
+	named<UpdateDaemonJvm>("updateDaemonJvm") {
 		languageVersion = libs.versions.gradleJava.map { JavaLanguageVersion.of(it.toInt()) }
 		vendor = JvmVendorSpec.ADOPTIUM
 	}
@@ -181,23 +127,3 @@ tasks {
 }
 // Removes LWJGL2 dependencies
 configurations.configureEach { exclude(group = "org.lwjgl.lwjgl") }
-
-publishing {
-	repositories {
-		maven("https://maven.thesignalumproject.net/releases") {
-			name = "signalumMaven"
-			credentials(PasswordCredentials::class)
-			authentication {
-				create<BasicAuthentication>("basic")
-			}
-		}
-	}
-	publications {
-		create<MavenPublication>("maven") {
-			groupId = modGroup.get()
-			artifactId = modName.get()
-			version = modVersion.get()
-			from(components["java"])
-		}
-	}
-}

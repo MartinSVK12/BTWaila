@@ -13,6 +13,7 @@ import toufoumaster.btwaila.network.packet.PacketEntityData;
 import toufoumaster.btwaila.network.packet.PacketRequestEntityData;
 import toufoumaster.btwaila.network.packet.PacketRequestTileEntityData;
 import toufoumaster.btwaila.util.VersionHelper;
+import turniplabs.halplibe.HalpLibe;
 import turniplabs.halplibe.util.GameStartEntrypoint;
 
 import java.util.HashMap;
@@ -20,7 +21,7 @@ import java.util.Map;
 
 
 public class BTWaila implements GameStartEntrypoint, ModInitializer {
-    public static final String MOD_ID = "btwaila";
+    public static final String MOD_ID = HalpLibe.registerMod("btwaila", true);
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static I18n translator = null;
     public static boolean canUseAdvancedTooltips = false;

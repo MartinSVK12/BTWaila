@@ -2,15 +2,19 @@ package toufoumaster.btwaila.gui.components;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.ScreenHudDesigner;
+import net.minecraft.client.gui.ScreenHudEditor;
+import net.minecraft.client.gui.TooltipElement;
 import net.minecraft.client.gui.hud.HudIngame;
 import net.minecraft.client.gui.hud.component.ComponentAnchor;
 import net.minecraft.client.gui.hud.component.HudComponent;
 import net.minecraft.client.gui.hud.component.HudComponents;
 import net.minecraft.client.gui.hud.component.layout.Layout;
-import net.minecraft.client.render.TextureManager;
-import net.minecraft.client.render.tessellator.Tessellator;
-import net.minecraft.client.render.texture.Texture;
+import net.minecraft.client.option.GameSettings;
+import net.minecraft.client.render.renderer.BlendFactor;
+import net.minecraft.client.render.renderer.CompareFunc;
+import net.minecraft.client.render.renderer.GLRenderer;
+import net.minecraft.client.render.renderer.State;
+import net.minecraft.client.render.tessellator.TessellatorGeneral;
 import net.minecraft.core.block.Block;
 import net.minecraft.core.entity.Entity;
 import net.minecraft.core.entity.Mob;
@@ -19,41 +23,45 @@ import net.minecraft.core.entity.player.Player;
 import net.minecraft.core.enums.EnumDropCause;
 import net.minecraft.core.item.ItemStack;
 import net.minecraft.core.util.phys.HitResult;
-import org.lwjgl.opengl.GL11;
+import org.jetbrains.annotations.NotNull;
+
 import toufoumaster.btwaila.BTWailaClient;
+import toufoumaster.btwaila.BTWailaOptions;
 import toufoumaster.btwaila.demo.DemoManager;
 import toufoumaster.btwaila.util.Colors;
 
+import static net.minecraft.client.gui.TooltipElement.styleMap;
 import static toufoumaster.btwaila.BTWaila.translator;
-import static toufoumaster.btwaila.BTWailaClient.modSettings;
 
 public class BaseInfoComponent extends WailaTextComponent {
     private boolean drawing = false;
     private final int backgroundHPadding = 4;
     private final int backgroundVPadding = 4;
     private final int topPadding = backgroundVPadding;
+	protected final static TooltipElement.Style defaultStyle = new TooltipElement.Style("default", "default", 3, 3, 3, 3);
     public BaseInfoComponent(String key, Layout layout) {
         super(key, 24, layout);
     }
 
-    @Override
-    public int getAnchorY(ComponentAnchor anchor) {
-        if (anchor.yPosition == 0.0f && !(anchor == ComponentAnchor.TOP_CENTER)){
-            return (int)(anchor.yPosition * getYSize(minecraft)) + topPadding;
-        }
-        return (int)(anchor.yPosition * getYSize(minecraft));
-    }
-    @Override
-    public int getYSize(Minecraft mc) {
-        if (!(mc.currentScreen instanceof ScreenHudDesigner) && !this.isVisible(mc)) {
+	@Override
+	public int getTrueAnchorY(@NotNull ComponentAnchor anchor) {
+		if (anchor.yPosition == 0.0f && !(anchor == ComponentAnchor.TOP_CENTER)){
+			return (int)(anchor.yPosition * getBaseYSize()) + topPadding;
+		}
+		return (int)(anchor.yPosition * getBaseYSize());
+	}
+
+	@Override
+    public int getBaseYSize() {
+        if (!(mc.currentScreen instanceof ScreenHudEditor) && !this.isVisible()) {
             return 0;
         }
         return height();
     }
 
     public void drawBoxyTexture(int minX, int minY, double width, double height, float opacity) {
-        GL11.glColor4f(1, 1, 1 , opacity);
-        Tessellator tl = Tessellator.instance;
+        GLRenderer.setColor4f(1, 1, 1 , opacity);
+        TessellatorGeneral tl = GLRenderer.getTessellator();
         int maxX = (int) (minX+width);
         int maxY = (int) (minY+height);
         int bottomLeftCornerY = maxY - 7;
@@ -115,72 +123,101 @@ public class BaseInfoComponent extends WailaTextComponent {
 
         tl.drawRectangleWithUV(maxX - 3 - finalWidth2, maxY - 3 - finalHeight2, finalWidth2, finalHeight2, 0.4375F, 0.4375F, ((float)finalWidth2 / 32.0F), ((float)finalHeight2 / 32.0F));
         tl.draw();
-        GL11.glColor4f(1, 1, 1 , 1);
+        GLRenderer.setColor4f(1, 1, 1 , 1);
     }
 
     public void renderBackground(int xScreenSize, int yScreenSize) {
-        if (!isVisible(minecraft) || !drawing) return;
-        int minX = getLayout().getComponentX(minecraft, this, xScreenSize);
-        int minY = getLayout().getComponentY(minecraft, this, yScreenSize);
-        int maxX = minX + getXSize(minecraft);
-        int maxY = minY + getYSize(minecraft);
+        if (!isVisible() || !drawing) return;
+        int minX = getLayout().getComponentX(this, xScreenSize);
+        int minY = getLayout().getComponentY(this, yScreenSize);
+        int maxX = minX + getBaseXSize();
+        int maxY = minY + getBaseYSize();
         for (HudComponent component : HudComponents.INSTANCE.getComponents()) {
             if (component == this) continue;
             try {
-                if (!component.isVisible(minecraft)) continue;
+                if (!component.isVisible()) continue;
             } catch (NullPointerException e) {
                 continue;
             }
             if (!WailaTextComponent.isComponentDeepAnchoredTo(component, this)) continue;
 
-            int compMinX = component.getLayout().getComponentX(minecraft, component, xScreenSize);
+            int compMinX = component.getLayout().getComponentX(component, xScreenSize);
             if (compMinX < minX) minX = compMinX;
 
-            int compMinY = component.getLayout().getComponentY(minecraft, component, yScreenSize);
+            int compMinY = component.getLayout().getComponentY(component, yScreenSize);
             if (compMinY < minY) minY = compMinY;
 
-            int compMaxX = compMinX+component.getXSize(minecraft);
+            int compMaxX = compMinX+component.getBaseXSize();
             if (compMaxX > maxX) maxX = compMaxX;
 
-            int compMaxY = compMinY+component.getYSize(minecraft);
+            int compMaxY = compMinY+component.getBaseYSize();
             if (compMaxY > maxY) maxY = compMaxY;
         }
+		float opacity = BTWailaOptions.backgroundOpacity.value;
+		drawBackground(minX,minY,maxX,maxY,opacity);
+		//drawBackground(minX-backgroundHPadding, minY, maxX+backgroundHPadding*2-minX, maxY+backgroundVPadding-minY);
 
-        GL11.glPushMatrix();
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glColor4f(1, 1, 1, 1);
+        /*GLRenderer.pushFrame();
+        GLRenderer.setBlendFunc(BlendFactor.SRC_ALPHA, BlendFactor.ONE_MINUS_SRC_ALPHA);
+        GLRenderer.enableState(State.BLEND);
+        GLRenderer.setColor4f(1, 1, 1, 1);
         TextureManager textureManager = minecraft.textureManager;
         //String style = modSettings().bTWaila$getBarStyle().value.name();
-        Texture tex = minecraft.textureManager.loadTexture((modSettings.bTWaila$getBackgroundStyle().value).getFilePath());//textureManager.loadTexture("minecraft:gui/tooltip/battle_ui.png");
+        Texture tex = minecraft.textureManager.loadTexture((Options.backgroundStyle.value).getFilePath());//textureManager.loadTexture("minecraft:gui/tooltip/battle_ui.png");
         textureManager.bindTexture(tex);
-        float opacity = modSettings.bTWaila$getBackgroundOpacity().value;
-        drawBoxyTexture(minX-backgroundHPadding, minY, maxX+backgroundHPadding*2-minX, maxY+backgroundVPadding-minY, opacity);
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glPopMatrix();
+        float opacity = Options.backgroundOpacity.value;
+        drawBoxyTexture(, opacity);
+        GLRenderer.disableState(State.BLEND);
+        GLRenderer.popFrame();*/
         //drawRect(minX-backgroundHPadding, minY-backgroundVPadding, maxX+backgroundHPadding, maxY+backgroundVPadding, 0xff000000);
     }
 
+	private void drawBackground(final int minX, final int minY, final int maxX, final int maxY, final float opacity) {
+		final TooltipElement.Style style = styleMap.getOrDefault(BTWailaOptions.backgroundStyle.value, defaultStyle);
+		if (style != null) {
+			GLRenderer.pushFrame();
+			GLRenderer.setDepthFunc(CompareFunc.ALWAYS);
+			GLRenderer.enableState(State.BLEND);
+			GLRenderer.setBlendFunc(BlendFactor.SRC_ALPHA, BlendFactor.ONE_MINUS_SRC_ALPHA);
+			GLRenderer.setColor4f(1, 1, 1, opacity);
+			activeGUI.drawGuiIcon(
+				minX - 2,
+				minY - 2,
+				maxX - minX + 4,
+				maxY - minY + 4,
+				style.getInnerIcon());
+			activeGUI.drawGuiIcon(
+				minX - 2 - style.paddingLeft,
+				minY - 2 - style.paddingTop,
+				maxX - minX + 4 + style.paddingLeft + style.paddingRight,
+				maxY - minY + 4 + style.paddingTop + style.paddingBottom,
+				style.getBorderIcon());
+
+			GLRenderer.disableState(State.BLEND);
+			GLRenderer.popFrame();
+		}
+	}
+
     @Override
-    public boolean isVisible(Minecraft minecraft) {
-        return minecraft.gameSettings.immersiveMode.drawHotbar();
+    public boolean isVisible() {
+        return GameSettings.IMMERSIVE_MODE.drawHotbar();
     }
 
     @Override
-    public void render(Minecraft minecraft, HudIngame HudIngame, int xScreenSize, int yScreenSize, float partialTick) {
+    public void render(HudIngame HudIngame, int xScreenSize, int yScreenSize, float partialTick) {
         HitResult hitResult = minecraft.objectMouseOver;
         if (hitResult == null) return;
-        if ((hitResult.hitType == HitResult.HitType.TILE && modSettings().bTWaila$getBlockTooltips().value) ||
-            (hitResult.hitType == HitResult.HitType.ENTITY && modSettings().bTWaila$getEntityTooltips().value)) {
+        if ((hitResult instanceof HitResult.Tile && BTWailaOptions.blockTooltips.value) ||
+            (hitResult instanceof HitResult.Entity && BTWailaOptions.entityTooltips.value)) {
             renderBackground(xScreenSize, yScreenSize);
-            super.render(minecraft, HudIngame, xScreenSize, yScreenSize, partialTick);
         }
+		super.render(HudIngame, xScreenSize, yScreenSize, partialTick);
     }
 
     @Override
-    public void renderPreview(Minecraft minecraft, Gui gui, Layout layout, int xScreenSize, int yScreenSize) {
+    public void renderPreview(Gui gui, Layout layout, int xScreenSize, int yScreenSize) {
         renderBackground(xScreenSize, yScreenSize);
-        super.renderPreview(minecraft, gui, layout, xScreenSize, yScreenSize);
+        super.renderPreview(gui, layout, xScreenSize, yScreenSize);
     }
 
     @Override
@@ -189,16 +226,16 @@ public class BaseInfoComponent extends WailaTextComponent {
         drawing = hitResult != null;
         if (hitResult == null) {return;}
         addOffY(topPadding);
-        if (hitResult.hitType == HitResult.HitType.TILE) {
-            Block<?> block = minecraft.currentWorld.getBlock(hitResult.x, hitResult.y, hitResult.z);
-            int meta = minecraft.currentWorld.getBlockMetadata(hitResult.x, hitResult.y, hitResult.z);
+        if (hitResult instanceof HitResult.Tile tileResult) {
+            Block<?> block = minecraft.currentWorld.getBlockType(tileResult.tilePos);
+            int meta = minecraft.currentWorld.getBlockData(tileResult.tilePos);
             ItemStack[] drops = null;
             if (block != null) {
-                drops = block.getBreakResult(minecraft.currentWorld, EnumDropCause.PICK_BLOCK, hitResult.x, hitResult.y, hitResult.z, minecraft.currentWorld.getBlockMetadata(hitResult.x, hitResult.y, hitResult.z), null);
+                drops = block.getBreakResult(minecraft.currentWorld, EnumDropCause.PICK_BLOCK, tileResult.tilePos, minecraft.currentWorld.getBlockData(tileResult.tilePos), null);
             }
             baseBlockInfo(block, meta, drops);
-        } else if (hitResult.hitType == HitResult.HitType.ENTITY) {
-            baseEntityInfo(hitResult.entity);
+        } else if (hitResult instanceof HitResult.Entity entityResult) {
+            baseEntityInfo(entityResult.entity);
         }
     }
 
@@ -217,7 +254,7 @@ public class BaseInfoComponent extends WailaTextComponent {
         }
     }
     protected void baseBlockInfo(Block<?> block, int blockMetadata, ItemStack[] blockDrops){
-        if (!modSettings().bTWaila$getBlockTooltips().value) return;
+        if (!BTWailaOptions.blockTooltips.value) return;
         if (minecraft.font == null) return;
 
         ItemStack renderItem = new ItemStack(block, 1, blockMetadata);
@@ -225,8 +262,8 @@ public class BaseInfoComponent extends WailaTextComponent {
 
         String languageKey = renderItem.getItemKey();
 
-        String blockName = translator.translateNameKey(languageKey);
-        String blockDesc = translator.translateDescKey(languageKey);
+        String blockName = translator.translateKey(languageKey+".name");
+        String blockDesc = translator.translateKey(languageKey+".desc");
         String blockSource = "Minecraft";
         for (String modId: BTWailaClient.modIds.keySet()){
             if (languageKey.contains(modId)){
@@ -234,18 +271,18 @@ public class BaseInfoComponent extends WailaTextComponent {
             }
         }
         String idString = block.id() + ":" + blockMetadata;
-        if (modSettings().bTWaila$getShowBlockId().value){
+        if (BTWailaOptions.showBlockId.value){
             blockName += " " + idString;
         }
 
-        drawStringJustified(blockName,0,getXSize(minecraft), Colors.WHITE);
-        drawStringJustified(blockSource,0,getXSize(minecraft), Colors.BLUE);
-        if (modSettings().bTWaila$getShowBlockDesc().value){
-            drawStringJustified(blockDesc,0,getXSize(minecraft), Colors.LIGHT_GRAY);
+        drawStringJustified(blockName,0,getDisplayedXSize(), Colors.WHITE);
+        drawStringJustified(blockSource,0,getDisplayedXSize(), Colors.BLUE);
+        if (BTWailaOptions.showBlockDescriptions.value){
+            drawStringJustified(blockDesc,0,getDisplayedXSize(), Colors.LIGHT_GRAY);
         }
     }
     protected void baseEntityInfo(Entity entity){
-        if (!modSettings().bTWaila$getEntityTooltips().value) return;
+        if (!BTWailaOptions.entityTooltips.value) return;
         boolean isLivingEntity = (entity instanceof Mob);
         Mob Mob = isLivingEntity ? (Mob) entity : null;
 
@@ -259,7 +296,7 @@ public class BaseInfoComponent extends WailaTextComponent {
                 color = Mob.chatColor;
             }
         }
-        drawStringJustified(AdvancedInfoComponent.getEntityName(entity), 0, getXSize(minecraft), color);
+        drawStringJustified(AdvancedInfoComponent.getEntityName(entity), 0, getDisplayedXSize(), color);
     }
 
 }

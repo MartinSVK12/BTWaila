@@ -1,6 +1,5 @@
 package toufoumaster.btwaila.tooltips.block;
 
-import net.minecraft.core.block.Block;
 import net.minecraft.core.block.Blocks;
 import net.minecraft.core.block.entity.TileEntityTrommel;
 import net.minecraft.core.item.ItemStack;

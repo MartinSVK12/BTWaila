@@ -5,16 +5,23 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.hud.HudIngame;
 import net.minecraft.client.gui.hud.component.HudComponentMovable;
 import net.minecraft.client.gui.hud.component.layout.Layout;
+import net.minecraft.client.option.GameSettings;
+import net.minecraft.client.render.Lighting;
 import net.minecraft.client.render.item.model.ItemModel;
 import net.minecraft.client.render.item.model.ItemModelDispatcher;
+import net.minecraft.client.render.renderer.GLRenderer;
+import net.minecraft.client.render.renderer.State;
 import net.minecraft.client.render.tessellator.Tessellator;
+import net.minecraft.client.render.tessellator.TessellatorGeneral;
 import net.minecraft.core.block.Block;
 import net.minecraft.core.item.Item;
 import net.minecraft.core.item.ItemStack;
 import net.minecraft.core.item.Items;
 import net.minecraft.core.player.gamemode.Gamemode;
+import net.minecraft.core.player.gamemode.Gamemodes;
+import net.minecraft.core.util.helper.LightIndexHelper;
 import net.minecraft.core.util.phys.HitResult;
-import org.lwjgl.opengl.GL11;
+
 import toufoumaster.btwaila.demo.DemoManager;
 
 public class HarvestToolComponent extends HudComponentMovable {
@@ -22,29 +29,10 @@ public class HarvestToolComponent extends HudComponentMovable {
         super(key, 18, 18, layout);
     }
 
-    @Override
-    public boolean isVisible(Minecraft minecraft) {
-        return minecraft.gameSettings.immersiveMode.drawHotbar() && minecraft.thePlayer.gamemode == Gamemode.survival;
-    }
-
-    @Override
-    public void render(Minecraft minecraft, HudIngame HudIngame, int xScreenSize, int yScreenSize, float f) {
-        if (minecraft.objectMouseOver == null) return;
-        if (minecraft.objectMouseOver.hitType != HitResult.HitType.TILE) return;
-        Block block = minecraft.currentWorld.getBlock(minecraft.objectMouseOver.x, minecraft.objectMouseOver.y, minecraft.objectMouseOver.z);
-        renderTool(minecraft, block, xScreenSize, yScreenSize);
-    }
-
-    @Override
-    public void renderPreview(Minecraft minecraft, Gui gui, Layout layout, int xScreenSize, int yScreenSize) {
-        Block block = DemoManager.getCurrentEntry().block;
-        if (block != null){
-            renderTool(minecraft, block, xScreenSize, yScreenSize);
-        }
-    }
-    protected void renderTool(Minecraft minecraft, Block block, int xScreenSize, int yScreenSize){
-        int x = getLayout().getComponentX(minecraft, this, xScreenSize);
-        int y = getLayout().getComponentY(minecraft, this, yScreenSize);
+    protected void renderTool(Block<?> block, int xScreenSize, int yScreenSize){
+		Minecraft minecraft = Minecraft.getMinecraft();
+        int x = getLayout().getComponentX( this, xScreenSize);
+        int y = getLayout().getComponentY(this, yScreenSize);
         Item itemHarvestTool = null;
         if (Items.TOOL_PICKAXE_STEEL.canHarvestBlock(minecraft.thePlayer, new ItemStack(block), block)) {
             itemHarvestTool = Items.TOOL_PICKAXE_STEEL;
@@ -61,12 +49,36 @@ public class HarvestToolComponent extends HudComponentMovable {
         }
         if (itemHarvestTool == null) return;
 
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
+        GLRenderer.enableState(State.DEPTH_TEST);
 
-        Tessellator t = Tessellator.instance;
+		TessellatorGeneral t = GLRenderer.getTessellator();
         ItemModel model = ItemModelDispatcher.getInstance().getDispatch(itemHarvestTool);
-        model.renderItemIntoGui(t, minecraft.font, minecraft.textureManager, itemHarvestTool.getDefaultStack(), x + (getXSize(minecraft) - 16)/2, y + (getYSize(minecraft) - 16)/2, 1.0F);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
-        GL11.glDisable(GL11.GL_LIGHTING);
+        model.renderGui(t, null, itemHarvestTool.getDefaultStack(), x + (getDisplayedXSize() - 16)/2, y + (getDisplayedYSize() - 16)/2, LightIndexHelper.lightIndex2i(15,15),1.0F);
+        GLRenderer.disableState(State.DEPTH_TEST);
+		Lighting.disable();
     }
+
+	@Override
+	public boolean isVisible() {
+		return GameSettings.IMMERSIVE_MODE.drawHotbar() && Minecraft.getMinecraft().thePlayer.gamemode == Gamemodes.SURVIVAL;
+	}
+
+	@Override
+	public void render(HudIngame hudIngame, int xScreenSize, int yScreenSize, float v) {
+		if (Minecraft.getMinecraft().objectMouseOver == null) return;
+		if (!(Minecraft.getMinecraft().objectMouseOver instanceof HitResult.Tile tile)){
+			return;
+		} else {
+			Block<?> block = Minecraft.getMinecraft().currentWorld.getBlockType(tile.tilePos);
+			renderTool(block, xScreenSize, yScreenSize);
+		}
+	}
+
+	@Override
+	public void renderPreview(Gui gui, Layout layout, int xScreenSize, int yScreenSize) {
+		Block block = DemoManager.getCurrentEntry().block;
+		if (block != null){
+			renderTool(block, xScreenSize, yScreenSize);
+		}
+	}
 }

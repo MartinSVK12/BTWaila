@@ -1,15 +1,19 @@
 package toufoumaster.btwaila.tooltips.block;
 
+import net.minecraft.client.render.Lighting;
 import net.minecraft.client.render.item.model.ItemModel;
 import net.minecraft.client.render.item.model.ItemModelDispatcher;
+import net.minecraft.client.render.renderer.GLRenderer;
 import net.minecraft.client.render.tessellator.Tessellator;
+import net.minecraft.client.render.tessellator.TessellatorGeneral;
 import net.minecraft.core.block.Block;
 import net.minecraft.core.block.Blocks;
 import net.minecraft.core.block.entity.TileEntityJukebox;
 import net.minecraft.core.item.Item;
 import net.minecraft.core.item.ItemStack;
 import net.minecraft.core.item.Items;
-import org.lwjgl.opengl.GL11;
+import net.minecraft.core.util.helper.LightIndexHelper;
+
 import toufoumaster.btwaila.demo.DemoEntry;
 import toufoumaster.btwaila.gui.components.AdvancedInfoComponent;
 import toufoumaster.btwaila.tooltips.TileTooltip;
@@ -31,13 +35,13 @@ public class JukeboxTooltip extends TileTooltip<TileEntityJukebox> {
         advancedInfoComponent.drawStringWithShadow(text, 0);
         if (Item.itemsList[recordPlayer.record] != null){
             ItemStack stack = new ItemStack(Item.itemsList[recordPlayer.record]);
-            int x = advancedInfoComponent.getPosX() + advancedInfoComponent.getGame().font.getStringWidth(text) + 2;
+            int x = advancedInfoComponent.getPosX() + advancedInfoComponent.getGame().font.stringWidth(text) + 2;
             y -= 4;
-            Tessellator t = Tessellator.instance;
+			TessellatorGeneral t = GLRenderer.getTessellator();
             ItemModel model = ItemModelDispatcher.getInstance().getDispatch(stack);
-            model.renderItemIntoGui(t, advancedInfoComponent.getGame().font, advancedInfoComponent.getGame().textureManager, stack, x, y, 1.0F);
-            model.renderItemOverlayIntoGUI(t, advancedInfoComponent.getGame().font, advancedInfoComponent.getGame().textureManager, stack, x, y, 1.0F);
-            GL11.glDisable(GL11.GL_LIGHTING);
+            model.renderGui(t, null, stack, x, y, LightIndexHelper.lightIndex2i(15,15),1.0F);
+            model.renderItemOverlayIntoGUI(t, advancedInfoComponent.getGame().font, advancedInfoComponent.getGame().textureManager, stack, x, y, null, 1.0F);
+			Lighting.disable();
         }
     }
     @Override

@@ -42,7 +42,7 @@ public class MobSpawnerTooltip extends TileTooltip<TileEntityMobSpawner> {
     @Override
     public DemoEntry tooltipDemo(Random random){
         TileEntityMobSpawner demoSpawner = new TileEntityMobSpawner();
-        NamespaceID[] entityIds = EntityDispatcher.idToClassMap.keySet().toArray(new NamespaceID[0]);
+        NamespaceID[] entityIds = EntityDispatcher.getInstance().idToEntryMap.keySet().toArray(new NamespaceID[0]);
         demoSpawner.setMobId(entityIds[random.nextInt(entityIds.length)].toString());
         Block<?> spawner = Blocks.MOBSPAWNER;
         return new DemoEntry(spawner, 0, demoSpawner, new ItemStack[]{spawner.getDefaultStack()});
